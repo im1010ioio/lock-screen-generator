@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iOS 鎖定畫面產生器</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                    },
+                    colors: {
+                        ios: {
+                            bg: '#F2F2F7',
+                            card: '#FFFFFF',
+                            blue: '#007AFF',
+                            line: '#06C755',
+                            whatsapp: '#25D366',
+                            wechat: '#07C160'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Glassmorphism for Preview */
+        .glass-panel {
+            /* 預覽時保持原樣，使用 CSS 濾鏡 */
+            background: rgba(255, 255, 255, 0.65); /* 稍微調低不透明度 */
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 用於下載時的強制樣式 Class */
+        .glass-panel-export-mode {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            /* 背景色改為淡淡的白色，因為模糊層已經在圖片裡了 */
+            background-color: rgba(255, 255, 255, 0.3) !important; 
+            background-repeat: no-repeat !important;
+            /* 確保模糊背景圖與容器大小一致 */
+            background-size: 1206px 2622px !important; 
+        }
+
+        .ios-shadow { text-shadow: 0px 2px 10px rgba(0, 0, 0, 0.3); }
+
+        /* Custom Radio Button Styling */
+        .app-radio:checked + label {
+            border-color: #007AFF;
+            background-color: #EFF6FF;
+            color: #007AFF;
+            transform: scale(0.98);
+        }
+
+        /* Hide Scrollbar but allow scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Export Container (Hidden) */
+        #export-wrapper {
+            position: fixed;
+            left: -9999px;
+            top: 0;
+            z-index: -1;
+            width: 1206px;
+            height: 2622px;
+        }
+    </style>
+</head>
+<body class="bg-ios-bg text-gray-900 min-h-screen font-sans pb-24 md:pb-0">
+
+    <!-- Navbar -->
+    <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200 px-4 py-3 flex justify-between items-center">
+        <h1 class="text-lg font-bold tracking-tight">iOS 鎖定畫面產生器</h1>
+        <div class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+            <span id="stepIndicator">步驟 1/2</span>
+        </div>
+    </nav>
+
+    <main class="max-w-md mx-auto relative min-h-[calc(100vh-60px)]">
+        
+        <!-- STEP 1: 編輯內容 -->
+        <div id="step1" class="p-5 space-y-6 animate-fade-in">
+            
+            <!-- 1. 選擇 App -->
+            <section class="bg-white rounded-2xl p-4 shadow-sm">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">選擇應用程式</h2>
+                <div class="grid grid-cols-4 gap-3">
+                    <!-- Line -->
+                    <div>
+                        <input type="radio" name="app" id="app-line" value="line" class="hidden app-radio" checked>
+                        <label for="app-line" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent transition-all cursor-pointer hover:bg-gray-50">
+                            <i class="fa-brands fa-line text-2xl text-[#06C755] mb-2"></i>
+                            <span class="text-[10px] font-medium">LINE</span>
+                        </label>
+                    </div>
+                    <!-- WhatsApp -->
+                    <div>
+                        <input type="radio" name="app" id="app-whatsapp" value="whatsapp" class="hidden app-radio">
+                        <label for="app-whatsapp" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent transition-all cursor-pointer hover:bg-gray-50">
+                            <i class="fa-brands fa-whatsapp text-2xl text-[#25D366] mb-2"></i>
+                            <span class="text-[10px] font-medium">WhatsApp</span>
+                        </label>
+                    </div>
+                    <!-- Instagram -->
+                    <div>
+                        <input type="radio" name="app" id="app-instagram" value="instagram" class="hidden app-radio">
+                        <label for="app-instagram" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent transition-all cursor-pointer hover:bg-gray-50">
+                            <i class="fa-brands fa-instagram text-2xl text-pink-600 mb-2"></i>
+                            <span class="text-[10px] font-medium">IG</span>
+                        </label>
+                    </div>
+                    <!-- WeChat -->
+                    <div>
+                        <input type="radio" name="app" id="app-wechat" value="wechat" class="hidden app-radio">
+                        <label for="app-wechat" class="flex flex-col items-center justify-center p-3 rounded-xl border-2 border-transparent transition-all cursor-pointer hover:bg-gray-50">
+                            <i class="fa-brands fa-weixin text-2xl text-[#07C160] mb-2"></i>
+                            <span class="text-[10px] font-medium">WeChat</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. 訊息內容 -->
+            <section class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">訊息設定</h2>
+                
+                <!-- 名字 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">傳訊者名稱</label>
+                    <input type="text" id="senderNameInput" value="柾國 JungKook" class="w-full bg-gray-100 border-none rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue transition-all">
+                </div>
+
+                <!-- 內容 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">訊息內容</label>
+                    <textarea id="messageInput" rows="3" class="w-full bg-gray-100 border-none rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-ios-blue transition-all resize-none">早安！別忘了吃早餐喔 ❤️</textarea>
+                </div>
+
+                <!-- 大頭貼 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">傳訊者大頭貼</label>
+                    <div class="flex items-center gap-4">
+                        <div class="relative w-14 h-14 rounded-full overflow-hidden bg-gray-200 shrink-0 border border-gray-100">
+                            <img id="avatarPreviewUi" src="https://ui-avatars.com/api/?name=Jung+Kook&background=random&color=fff" class="w-full h-full object-cover">
+                        </div>
+                        <label class="flex-1">
+                            <span class="sr-only">Choose profile photo</span>
+                            <input type="file" id="avatarInput" accept="image/*" class="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2.5 file:px-4
+                                file:rounded-full file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-blue-50 file:text-blue-700
+                                hover:file:bg-blue-100
+                            "/>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. 背景圖片 -->
+            <section class="bg-white rounded-2xl p-4 shadow-sm">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">手機桌布</h2>
+                <div class="relative w-full h-32 rounded-xl overflow-hidden bg-gray-200 group cursor-pointer border-2 border-dashed border-gray-300 hover:border-ios-blue transition-colors">
+                    <img id="bgPreviewUi" src="https://images.unsplash.com/photo-1513569771920-c9e1d31714b0?q=80&w=1000&auto=format&fit=crop" class="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 pointer-events-none">
+                        <i class="fa-solid fa-image text-2xl mb-1"></i>
+                        <span class="text-xs font-medium">點擊更換桌布</span>
+                    </div>
+                    <input type="file" id="bgInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                </div>
+            </section>
+        </div>
+
+        <!-- STEP 2: 預覽畫面 (預設隱藏) -->
+        <div id="step2" class="hidden h-[calc(100vh-70px)] flex flex-col items-center justify-center p-4 animate-slide-up bg-gray-100">
+            
+            <div class="w-full max-w-[340px] aspect-[9/19.5] bg-black rounded-[40px] shadow-2xl border-[6px] border-gray-800 overflow-hidden relative ring-4 ring-gray-200/50">
+                <!-- 預覽螢幕內容 -->
+                <div id="previewScreen" class="w-full h-full bg-cover bg-center relative">
+                    
+                    <!-- 時間 -->
+                    <div class="absolute top-10 left-0 right-0 text-center z-10 pt-4">
+                        <i class="fa-solid fa-lock text-white/80 text-[10px] mb-1 ios-shadow"></i>
+                        <div id="previewTime" class="text-5xl font-bold text-white tracking-tight ios-shadow">09:41</div>
+                        <div id="previewDate" class="text-sm font-medium text-white ios-shadow mt-1">2月10日 週二</div>
+                    </div>
+
+                    <!-- 通知卡片 -->
+                    <div class="absolute top-[28%] left-0 right-0 px-2.5 z-20">
+                        <div class="w-full glass-panel rounded-[18px] p-3 flex gap-3 items-center">
+                            <!-- Avatar + Badge -->
+                            <div class="relative flex-shrink-0">
+                                <div class="w-[42px] h-[42px] rounded-full bg-gray-300 overflow-hidden border border-white/30">
+                                    <img id="previewAvatar" src="" class="w-full h-full object-cover">
+                                </div>
+                                <div id="previewAppBadge" class="absolute -bottom-1 -right-1 w-5 h-5 rounded flex items-center justify-center text-white text-[10px] shadow-sm border border-white/40 bg-ios-line">
+                                    <i id="previewAppIcon" class="fa-brands fa-line"></i>
+                                </div>
+                            </div>
+                            <!-- Text -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <span id="previewName" class="font-bold text-gray-900 text-[13px] truncate">Name</span>
+                                    <span class="text-[10px] text-gray-500 font-medium">現在</span>
+                                </div>
+                                <p id="previewMessage" class="text-[13px] text-gray-800 leading-tight line-clamp-2">Message</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部按鈕 -->
+                    <div class="absolute bottom-6 left-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white">
+                        <i class="fa-solid fa-flashlight text-sm"></i>
+                    </div>
+                    <div class="absolute bottom-6 right-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white">
+                        <i class="fa-solid fa-camera text-sm"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-xs text-gray-400 mt-4 text-center">預覽畫面僅供參考，下載檔案為高畫質原圖</p>
+        </div>
+
+        <!-- 底部浮動按鈕區 -->
+        <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200 p-4 md:static md:bg-transparent md:border-none md:max-w-md md:mx-auto z-50">
+            <!-- Step 1 Actions -->
+            <div id="actionsStep1" class="flex gap-3">
+                <button onclick="goToStep(2)" class="flex-1 bg-ios-blue hover:bg-blue-600 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    產生預覽
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- Step 2 Actions -->
+            <div id="actionsStep2" class="hidden flex gap-3">
+                <button onclick="goToStep(1)" class="w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3.5 px-4 rounded-xl active:scale-[0.98] transition-all">
+                    <i class="fa-solid fa-pen mr-1"></i> 修改
+                </button>
+                <button id="downloadBtn" class="flex-1 bg-ios-blue hover:bg-blue-600 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i>
+                    下載圖片
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- HIDDEN EXPORT CONTAINER (High Res) -->
+    <!-- 1206x2622 px -->
+    <div id="export-wrapper">
+        <div id="exportContainer" class="w-[1206px] h-[2622px] relative bg-gray-800 bg-cover bg-center">
+            <!-- 通知卡片 (依比例放大) -->
+            <div class="absolute top-[734px] left-0 right-0 px-[40px]">
+                <div class="w-full glass-panel rounded-[60px] p-[50px] flex gap-[35px] items-center border-[3px] border-white/40">
+                    <!-- Avatar -->
+                    <div class="relative flex-shrink-0">
+                        <div class="w-[160px] h-[160px] rounded-full bg-gray-300 overflow-hidden border-[3px] border-white/30">
+                            <img id="exportAvatar" src="" class="w-full h-full object-cover">
+                        </div>
+                        <!-- Badge -->
+                        <div id="exportAppBadge" class="absolute -bottom-[10px] -right-[10px] w-[70px] h-[70px] rounded-[18px] flex items-center justify-center text-white text-[40px] shadow-lg border-[2px] border-white/40 bg-ios-line">
+                            <i id="exportAppIcon" class="fa-brands fa-line"></i>
+                        </div>
+                    </div>
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0 flex flex-col justify-center h-full gap-[15px]">
+                        <div class="flex justify-between items-baseline">
+                            <span id="exportName" class="font-bold text-gray-900 text-[48px] truncate leading-tight">Name</span>
+                            <span class="text-[32px] text-gray-500 font-medium">現在</span>
+                        </div>
+                        <p id="exportMessage" class="text-[42px] text-gray-800 leading-[1.3] line-clamp-3">Message</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentBg = 'https://images.unsplash.com/photo-1513569771920-c9e1d31714b0?q=80&w=1000&auto=format&fit=crop';
+        let currentAvatar = 'https://ui-avatars.com/api/?name=Jung+Kook&background=random&color=fff';
+
+        // DOM Elements
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const actionsStep1 = document.getElementById('actionsStep1');
+        const actionsStep2 = document.getElementById('actionsStep2');
+        const stepIndicator = document.getElementById('stepIndicator');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Preview & Export Elements
+        const previewScreen = document.getElementById('previewScreen');
+        const exportContainer = document.getElementById('exportContainer');
+        
+        // Inputs
+        const appRadios = document.querySelectorAll('input[name="app"]');
+        const senderNameInput = document.getElementById('senderNameInput');
+        const messageInput = document.getElementById('messageInput');
+        const avatarInput = document.getElementById('avatarInput');
+        const bgInput = document.getElementById('bgInput');
+        const bgPreviewUi = document.getElementById('bgPreviewUi');
+        const avatarPreviewUi = document.getElementById('avatarPreviewUi');
+
+        // Dynamic Elements
+        const elementsToUpdate = {
+            name: ['previewName', 'exportName'],
+            message: ['previewMessage', 'exportMessage'],
+            avatar: ['previewAvatar', 'exportAvatar'],
+            appIcon: ['previewAppIcon', 'exportAppIcon'],
+            appBadge: ['previewAppBadge', 'exportAppBadge']
+        };
+
+        // App Config
+        const appConfig = {
+            line: { color: '#06C755', icon: 'fa-line' },
+            whatsapp: { color: '#25D366', icon: 'fa-whatsapp' },
+            instagram: { 
+                color: 'radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)', 
+                icon: 'fa-instagram',
+                isGradient: true 
+            },
+            wechat: { color: '#07C160', icon: 'fa-weixin' }
+        };
+
+        // --- Core Functions ---
+
+        function goToStep(step) {
+            window.scrollTo(0, 0);
+            if(step === 1) {
+                step1.classList.remove('hidden');
+                step2.classList.add('hidden');
+                actionsStep1.classList.remove('hidden');
+                actionsStep2.classList.add('hidden');
+                stepIndicator.textContent = '步驟 1/2';
+            } else {
+                updateAllPreviews(); 
+                step1.classList.add('hidden');
+                step2.classList.remove('hidden');
+                actionsStep1.classList.add('hidden');
+                actionsStep2.classList.remove('hidden');
+                stepIndicator.textContent = '步驟 2/2';
+            }
+        }
+
+        function updateAllPreviews() {
+            const name = senderNameInput.value;
+            const message = messageInput.value;
+            
+            elementsToUpdate.name.forEach(id => document.getElementById(id).textContent = name);
+            elementsToUpdate.message.forEach(id => document.getElementById(id).textContent = message);
+
+            previewScreen.style.backgroundImage = `url('${currentBg}')`;
+            exportContainer.style.backgroundImage = `url('${currentBg}')`;
+            elementsToUpdate.avatar.forEach(id => document.getElementById(id).src = currentAvatar);
+
+            const selectedApp = document.querySelector('input[name="app"]:checked').value;
+            const config = appConfig[selectedApp];
+
+            elementsToUpdate.appIcon.forEach(id => {
+                const el = document.getElementById(id);
+                el.className = `fa-brands ${config.icon}`;
+            });
+
+            elementsToUpdate.appBadge.forEach(id => {
+                const el = document.getElementById(id);
+                el.style.background = config.isGradient ? config.color : '';
+                el.style.backgroundColor = config.isGradient ? '' : config.color;
+            });
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('previewTime').textContent = `${hours}:${minutes}`;
+            const options = { month: 'long', day: 'numeric', weekday: 'short' };
+            document.getElementById('previewDate').textContent = now.toLocaleDateString('zh-TW', options);
+        }
+        setInterval(updateTime, 1000);
+
+        // --- File Handlers ---
+        bgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentBg = event.target.result;
+                    bgPreviewUi.src = currentBg;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        avatarInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentAvatar = event.target.result;
+                    avatarPreviewUi.src = currentAvatar;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // --- Advanced Blur Generation for Export ---
+        
+        // 產生一張與 Export Container 同樣大小 (1206x2622) 的模糊背景圖
+        async function createBlurredWallpaper(imageUrl, targetWidth, targetHeight, blurPx = 40) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = imageUrl;
+                
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
+                    const ctx = canvas.getContext('2d');
+
+                    // 模擬 background-size: cover 的計算邏輯
+                    const imgRatio = img.width / img.height;
+                    const targetRatio = targetWidth / targetHeight;
+                    
+                    let renderW, renderH, offsetX, offsetY;
+
+                    if (imgRatio > targetRatio) {
+                        // 圖片比較寬，以高度為準
+                        renderH = targetHeight;
+                        renderW = targetHeight * imgRatio;
+                        offsetX = (targetWidth - renderW) / 2; // 置中
+                        offsetY = 0;
+                    } else {
+                        // 圖片比較高，以寬度為準
+                        renderW = targetWidth;
+                        renderH = targetWidth / imgRatio;
+                        offsetX = 0;
+                        offsetY = (targetHeight - renderH) / 2; // 置中
+                    }
+
+                    // 繪製並模糊
+                    ctx.filter = `blur(${blurPx}px)`;
+                    // 為了避免邊緣白邊，稍微放大一點點繪製
+                    const bleed = blurPx * 2;
+                    ctx.drawImage(img, offsetX - bleed, offsetY - bleed, renderW + (bleed*2), renderH + (bleed*2));
+                    
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = reject;
+            });
+        }
+
+        // --- Download Logic ---
+        downloadBtn.addEventListener('click', async () => {
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理特效中...';
+            downloadBtn.disabled = true;
+
+            // Export 容器的實際尺寸
+            const EXPORT_WIDTH = 1206;
+            const EXPORT_HEIGHT = 2622;
+            
+            // 找到通知卡片 DOM
+            const exportGlassPanel = exportContainer.querySelector('.glass-panel');
+            // 卡片相對於 Container 的位置 (因為 HTML 結構是 absolute top-[734px] left-0 right-0 px-[40px])
+            // 我們知道卡片 wrapper 的 padding-left 是 40px，top 是 734px
+            const CARD_OFFSET_X = 40; 
+            const CARD_OFFSET_Y = 734;
+
+            try {
+                updateAllPreviews();
+                
+                // 1. 生成模糊版背景圖
+                const blurredBgDataUrl = await createBlurredWallpaper(currentBg, EXPORT_WIDTH, EXPORT_HEIGHT, 50);
+
+                // 2. 將模糊圖設定為卡片的背景
+                // 重點：透過 background-position 讓模糊圖與底圖「對齊」
+                exportGlassPanel.classList.add('glass-panel-export-mode');
+                exportGlassPanel.style.backgroundImage = `url(${blurredBgDataUrl})`;
+                // 負值座標將背景圖往左上推，使其剛好對應到卡片視窗的位置
+                exportGlassPanel.style.backgroundPosition = `-${CARD_OFFSET_X}px -${CARD_OFFSET_Y}px`;
+                
+                // 等待一下 DOM 渲染
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                // 3. 執行截圖
+                const canvas = await html2canvas(exportContainer, {
+                    scale: 1, // 因為我們已經是用 1206x2622 的大容器了，不需要再放大 scale
+                    useCORS: true,
+                    allowTaint: true,
+                    width: EXPORT_WIDTH,
+                    height: EXPORT_HEIGHT,
+                    backgroundColor: null,
+                    logging: false
+                });
+
+                // 4. 下載
+                const link = document.createElement('a');
+                link.download = `ios-lockscreen-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+            } catch (err) {
+                console.error(err);
+                alert('圖片生成失敗，請稍後再試。原因: ' + err.message);
+            } finally {
+                // 5. 復原 CSS
+                exportGlassPanel.classList.remove('glass-panel-export-mode');
+                exportGlassPanel.style.backgroundImage = '';
+                exportGlassPanel.style.backgroundPosition = '';
+                
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.disabled = false;
+            }
+        });
+
+        // Initialize
+        updateTime();
+        updateAllPreviews();
+
+    </script>
+</body>
+</html>
